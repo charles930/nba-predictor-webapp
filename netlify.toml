@@ -1,0 +1,42 @@
+# Netlify Configuration for NBA Predictor App
+
+[build]
+publish = "dist"
+command = "npm run build"
+functions = "netlify/functions"
+
+[build.environment]
+# API keys should be set in Netlify dashboard environment variables
+# BALLDONTLIE_API_KEY: Get from https://app.balldontlie.io
+# ODDS_API_KEY: Get from https://the-odds-api.com (optional)
+
+[functions]
+directory = "netlify/functions"
+node_bundler = "esbuild"
+
+# SPA routing - redirect all non-file requests to index.html
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+# Cache headers for static assets
+[[headers]]
+for = "/*"
+[headers.values]
+"Cache-Control" = "public, max-age=3600"
+"X-Content-Type-Options" = "nosniff"
+"X-Frame-Options" = "SAMEORIGIN"
+"X-XSS-Protection" = "1; mode=block"
+
+# Long-term cache for versioned assets
+[[headers]]
+for = "/assets/*"
+[headers.values]
+"Cache-Control" = "public, max-age=31536000, immutable"
+
+# API functions - short cache
+[[headers]]
+for = "/.netlify/functions/*"
+[headers.values]
+"Cache-Control" = "public, max-age=300"

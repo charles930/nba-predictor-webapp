@@ -3,10 +3,15 @@
 // Ported to web app with backend integration
 
 export class APIManager {
-    constructor(backendUrl = 'http://localhost:3001') {
+    constructor(backendUrl = null) {
         this.ballDontLieBase = 'https://api.balldontlie.io/v1';
         this.oddsAPIBase = 'https://api.the-odds-api.com/v4';
-        this.backendUrl = backendUrl;
+        // Use Netlify functions in production, fallback to localhost for development
+        this.backendUrl = backendUrl || (
+            typeof window !== 'undefined' && window.location.hostname === 'localhost'
+                ? 'http://localhost:3001'
+                : '/.netlify/functions'
+        );
         
         // Cache configuration
         this.cache = new Map();
@@ -157,8 +162,11 @@ export class APIManager {
         }
 
         try {
-            // Try backend API first
-            const url = `${this.backendUrl}/api/games?date=${date}`;
+            // Use Netlify function in production, Express server in development
+            const path = this.backendUrl.includes('/.netlify/functions') 
+                ? `/games?date=${date}` 
+                : `/api/games?date=${date}`;
+            const url = `${this.backendUrl}${path}`;
             const data = await this.fetchWithRetry(url);
             
             // Log data source
@@ -181,16 +189,26 @@ export class APIManager {
         }
     }
 
-    async getTeamStats(teamId, season = 2024) {
+    async getTeamStats(teamId, season = 2025) {
         const cacheKey = this.getCacheKey('teamStats', { teamId, season });
         const cached = this.getFromCache(cacheKey);
         if (cached) return cached;
 
-        console.log('Using mock team stats for team:', teamId);
-        const mockStats = this.getMockTeamStats(teamId);
-        
-        this.setCache(cacheKey, mockStats);
-        return mockStats;
+        try {
+            // Use Netlify function in production, Express server in development
+            const path = this.backendUrl.includes('/.netlify/functions') 
+                ? `/team-stats?teamId=${teamId}&season=${season}` 
+                : `/api/team-stats?teamId=${teamId}&season=${season}`;
+            const url = `${this.backendUrl}${path}`;
+            const data = await this.fetchWithRetry(url);
+            
+            this.setCache(cacheKey, data);
+            return data;
+        } catch (error) {
+            console.warn('Error fetching real team stats, using mock data:', error);
+            const mockStats = this.getMockTeamStats(teamId);
+            return mockStats;
+        }
     }
 
     // The Odds API Methods
@@ -203,7 +221,11 @@ export class APIManager {
         }
 
         try {
-            const url = `${this.backendUrl}/api/odds?homeTeam=${homeTeam}&awayTeam=${awayTeam}`;
+            // Use Netlify function in production, Express server in development
+            const path = this.backendUrl.includes('/.netlify/functions') 
+                ? `/odds?homeTeam=${homeTeam}&awayTeam=${awayTeam}` 
+                : `/api/odds?homeTeam=${homeTeam}&awayTeam=${awayTeam}`;
+            const url = `${this.backendUrl}${path}`;
             const data = await this.fetchWithRetry(url);
             
             // Log data source
