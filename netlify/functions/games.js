@@ -107,7 +107,7 @@ async function fetchGamesForDate(date, apiKey) {
   return data;
 }
 
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
   // Enable CORS
   const headers = {
     'Content-Type': 'application/json',

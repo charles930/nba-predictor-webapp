@@ -76,7 +76,7 @@ function getMockTeamStats(teamId) {
   return { data: baseStats };
 }
 
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
   // Enable CORS
   const headers = {
     'Content-Type': 'application/json',
