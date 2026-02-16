@@ -1,4 +1,5 @@
 import { APIManager } from '../lib/api'
+import { formatGameTimeET } from '../lib/dateUtils'
 
 export default function GameCard({ game, onSelect }) {
   const apiManager = new APIManager()
@@ -12,7 +13,7 @@ export default function GameCard({ game, onSelect }) {
     >
       {/* Time */}
       <div className="text-sm text-slate-400 mb-4">
-        {game.time || '7:30 PM ET'}
+        {game.time || formatGameTimeET(game.datetime)}
       </div>
 
       {/* Teams */}

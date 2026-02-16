@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import PredictionCard from './PredictionCard'
 import TeamComparison from './TeamComparison'
 import FactorsBreakdown from './FactorsBreakdown'
+import { formatGameTimeET } from '../lib/dateUtils'
 
 export default function GameDetail({ game, prediction, apiManager, onBack }) {
   const [expandedFactors, setExpandedFactors] = useState(false)
@@ -35,7 +36,7 @@ export default function GameDetail({ game, prediction, apiManager, onBack }) {
 
           {/* Score / Time */}
           <div className="text-center px-4">
-            <p className="text-slate-400 text-sm mb-2">{game.time || '7:30 PM ET'}</p>
+            <p className="text-slate-400 text-sm mb-2">{game.time || formatGameTimeET(game.datetime)}</p>
             <div className="text-4xl font-bold text-slate-300">@</div>
           </div>
 
