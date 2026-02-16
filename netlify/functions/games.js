@@ -233,6 +233,11 @@ export const handler = async (event, context) => {
 
     // Get API key from environment
     const apiKey = process.env.BALLDONTLIE_API_KEY;
+    
+    // DEBUG: Log API key status (masked)
+    const hasApiKey = !!apiKey;
+    const maskedKey = apiKey ? apiKey.substring(0, 4) + '***' + apiKey.substring(apiKey.length - 4) : 'NOT SET';
+    console.log(`[DEBUG] API Key Status: ${hasApiKey ? 'PRESENT' : 'MISSING'} (masked: ${maskedKey})`);
 
     if (!apiKey) {
       console.warn(
@@ -243,7 +248,13 @@ export const handler = async (event, context) => {
         ...mockData,
         _dataSource: 'MOCK',
         _message:
-          'Using mock data. Configure BALLDONTLIE_API_KEY in Netlify env vars to enable real data.'
+          'Using mock data. Configure BALLDONTLIE_API_KEY in Netlify env vars to enable real data.',
+        _debug: {
+          apiKeyFound: false,
+          apiKeyEnvVar: 'BALLDONTLIE_API_KEY',
+          url: `https://api.balldontlie.io/v1/games?start_date=${startDate}&end_date=${endDate}&per_page=100`,
+          error: 'API_KEY_NOT_CONFIGURED'
+        }
       };
       setCache(cacheKey, result);
       return {
@@ -285,7 +296,15 @@ export const handler = async (event, context) => {
       _dataSource: 'REAL',
       _apiProvider: 'BallDontLie',
       _startDate: startDate,
-      _count: games.length
+      _endDate: endDate,
+      _count: games.length,
+      _debug: {
+        apiKeyFound: true,
+        apiKeyEnvVar: 'BALLDONTLIE_API_KEY',
+        url: `https://api.balldontlie.io/v1/games?start_date=${startDate}&end_date=${endDate}&per_page=100`,
+        gamesReturned: games.length,
+        timestamp: new Date().toISOString()
+      }
     };
 
     setCache(cacheKey, enrichedData);
@@ -308,7 +327,14 @@ export const handler = async (event, context) => {
       body: JSON.stringify({
         ...mockData,
         _dataSource: 'MOCK',
-        _message: 'Real API failed, using mock data as fallback'
+        _message: 'Real API failed, using mock data as fallback',
+        _debug: {
+          apiKeyFound: !!process.env.BALLDONTLIE_API_KEY,
+          apiKeyEnvVar: 'BALLDONTLIE_API_KEY',
+          error: error.message,
+          errorType: error.constructor.name,
+          timestamp: new Date().toISOString()
+        }
       })
     };
   }

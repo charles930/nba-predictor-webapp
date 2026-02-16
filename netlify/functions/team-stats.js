@@ -119,6 +119,11 @@ export const handler = async (event, context) => {
 
     // Get API key from environment
     const apiKey = process.env.BALLDONTLIE_API_KEY;
+    
+    // DEBUG: Log API key status (masked)
+    const hasApiKey = !!apiKey;
+    const maskedKey = apiKey ? apiKey.substring(0, 4) + '***' + apiKey.substring(apiKey.length - 4) : 'NOT SET';
+    console.log(`[DEBUG] API Key Status: ${hasApiKey ? 'PRESENT' : 'MISSING'} (masked: ${maskedKey})`);
 
     if (!apiKey) {
       console.warn(
@@ -128,7 +133,15 @@ export const handler = async (event, context) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify(mockData)
+        body: JSON.stringify({
+          ...mockData,
+          _debug: {
+            apiKeyFound: false,
+            apiKeyEnvVar: 'BALLDONTLIE_API_KEY',
+            teamId: teamId,
+            error: 'API_KEY_NOT_CONFIGURED'
+          }
+        })
       };
     }
 
@@ -158,7 +171,14 @@ export const handler = async (event, context) => {
     const enrichedData = {
       ...data,
       _dataSource: 'REAL',
-      _apiProvider: 'BallDontLie'
+      _apiProvider: 'BallDontLie',
+      _debug: {
+        apiKeyFound: true,
+        apiKeyEnvVar: 'BALLDONTLIE_API_KEY',
+        teamId: teamId,
+        season: season || 2025,
+        timestamp: new Date().toISOString()
+      }
     };
 
     setCache(cacheKey, enrichedData);
@@ -180,7 +200,15 @@ export const handler = async (event, context) => {
       body: JSON.stringify({
         ...mockData,
         _dataSource: 'MOCK',
-        _message: 'Real API failed, using mock data as fallback'
+        _message: 'Real API failed, using mock data as fallback',
+        _debug: {
+          apiKeyFound: !!process.env.BALLDONTLIE_API_KEY,
+          apiKeyEnvVar: 'BALLDONTLIE_API_KEY',
+          teamId: event.queryStringParameters?.teamId || '1',
+          error: error.message,
+          errorType: error.constructor.name,
+          timestamp: new Date().toISOString()
+        }
       })
     };
   }

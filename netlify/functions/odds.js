@@ -110,6 +110,11 @@ export const handler = async (event, context) => {
 
     // Get API key from environment
     const apiKey = process.env.ODDS_API_KEY;
+    
+    // DEBUG: Log API key status (masked)
+    const hasApiKey = !!apiKey;
+    const maskedKey = apiKey ? apiKey.substring(0, 4) + '***' + apiKey.substring(apiKey.length - 4) : 'NOT SET';
+    console.log(`[DEBUG] API Key Status: ${hasApiKey ? 'PRESENT' : 'MISSING'} (masked: ${maskedKey})`);
 
     if (!apiKey) {
       console.warn(
@@ -120,7 +125,14 @@ export const handler = async (event, context) => {
         ...mockData,
         _dataSource: 'MOCK',
         _message:
-          'Using mock data. Configure ODDS_API_KEY in Netlify env vars to enable real odds data.'
+          'Using mock data. Configure ODDS_API_KEY in Netlify env vars to enable real odds data.',
+        _debug: {
+          apiKeyFound: false,
+          apiKeyEnvVar: 'ODDS_API_KEY',
+          homeTeam: homeTeam,
+          awayTeam: awayTeam,
+          error: 'API_KEY_NOT_CONFIGURED'
+        }
       };
       setCache(cacheKey, result);
       return {
@@ -160,7 +172,15 @@ export const handler = async (event, context) => {
       const enrichedData = {
         ...gameOdds,
         _dataSource: 'REAL',
-        _apiProvider: 'TheOddsAPI'
+        _apiProvider: 'TheOddsAPI',
+        _debug: {
+          apiKeyFound: true,
+          apiKeyEnvVar: 'ODDS_API_KEY',
+          homeTeam: homeTeam,
+          awayTeam: awayTeam,
+          gameFound: true,
+          timestamp: new Date().toISOString()
+        }
       };
       setCache(cacheKey, enrichedData);
       return {
@@ -176,7 +196,15 @@ export const handler = async (event, context) => {
       const result = {
         ...mockData,
         _dataSource: 'MOCK',
-        _message: 'Game not found in real odds API, using mock data'
+        _message: 'Game not found in real odds API, using mock data',
+        _debug: {
+          apiKeyFound: true,
+          apiKeyEnvVar: 'ODDS_API_KEY',
+          homeTeam: homeTeam,
+          awayTeam: awayTeam,
+          gameFound: false,
+          timestamp: new Date().toISOString()
+        }
       };
       setCache(cacheKey, result);
       return {
@@ -198,7 +226,16 @@ export const handler = async (event, context) => {
       body: JSON.stringify({
         ...mockData,
         _dataSource: 'MOCK',
-        _message: 'Real API failed, using mock data as fallback'
+        _message: 'Real API failed, using mock data as fallback',
+        _debug: {
+          apiKeyFound: !!process.env.ODDS_API_KEY,
+          apiKeyEnvVar: 'ODDS_API_KEY',
+          homeTeam: event.queryStringParameters?.homeTeam || 'LAL',
+          awayTeam: event.queryStringParameters?.awayTeam || 'GSW',
+          error: error.message,
+          errorType: error.constructor.name,
+          timestamp: new Date().toISOString()
+        }
       })
     };
   }
