@@ -18,6 +18,7 @@ export default function App() {
   const [error, setError] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [lastUpdate, setLastUpdate] = useState('Never')
+  const [fallbackMessage, setFallbackMessage] = useState(null)
 
   // Initialize API and predictor
   const apiManager = new APIManager()
@@ -30,11 +31,17 @@ export default function App() {
   const loadGames = async () => {
     setLoading(true)
     setError(null)
+    setFallbackMessage(null)
     try {
       const dateStr = apiManager.formatDate(currentDate)
       const gamesResult = await apiManager.getGames(dateStr)
       setGamesData(gamesResult.data || [])
       setLastUpdate(new Date().toLocaleTimeString())
+      
+      // Show fallback message if games are from a different date
+      if (gamesResult._message) {
+        setFallbackMessage(gamesResult._message)
+      }
     } catch (err) {
       setError('Failed to load games. Please try again.')
       console.error('Error loading games:', err)
@@ -103,6 +110,12 @@ export default function App() {
             >
               Retry
             </button>
+          </div>
+        )}
+
+        {fallbackMessage && (
+          <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4 mb-6">
+            <p className="text-blue-200">ℹ️ {fallbackMessage}</p>
           </div>
         )}
 

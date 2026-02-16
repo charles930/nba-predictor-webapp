@@ -21,6 +21,18 @@ function setCache(key, data) {
   });
 }
 
+function parseDate(dateStr) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getMockGames(date) {
   return {
     data: [
@@ -70,6 +82,29 @@ function getMockGames(date) {
       }
     ]
   };
+}
+
+async function fetchGamesForDate(date, apiKey) {
+  const url = `https://api.balldontlie.io/v1/games?dates[]=${date}`;
+  console.log(`[REAL DATA] Fetching games from BallDontLie API for ${date}...`);
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: apiKey,
+      Accept: 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(
+      `[API ERROR] BallDontLie returned ${response.status}: ${errorText}`
+    );
+    throw new Error(`BallDontLie API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data;
 }
 
 exports.handler = async (event, context) => {
@@ -134,26 +169,48 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Fetch from BallDontLie API
-    const url = `https://api.balldontlie.io/v1/games?dates[]=${date}`;
-    console.log(`[REAL DATA] Fetching games from BallDontLie API for ${date}...`);
+    // Try to fetch games for the requested date
+    let data = await fetchGamesForDate(date, apiKey);
+    let gameCount = data.data?.length || 0;
+    let fallbackDate = null;
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: apiKey,
-        Accept: 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(
-        `[API ERROR] BallDontLie returned ${response.status}: ${errorText}`
+    // If no games for this date, try previous dates (up to 7 days back)
+    if (gameCount === 0) {
+      console.log(
+        `[FALLBACK] No games found for ${date}. Trying previous dates...`
       );
-      throw new Error(`BallDontLie API error: ${response.status}`);
+      const requestedDate = parseDate(date);
+
+      for (let daysBack = 1; daysBack <= 7; daysBack++) {
+        const checkDate = new Date(requestedDate);
+        checkDate.setDate(checkDate.getDate() - daysBack);
+        const checkDateStr = formatDate(checkDate);
+
+        try {
+          const checkData = await fetchGamesForDate(checkDateStr, apiKey);
+          const checkGameCount = checkData.data?.length || 0;
+
+          if (checkGameCount > 0) {
+            console.log(
+              `[FALLBACK SUCCESS] Found ${checkGameCount} games on ${checkDateStr}`
+            );
+            data = checkData;
+            fallbackDate = checkDateStr;
+            break;
+          }
+        } catch (err) {
+          console.log(`[FALLBACK ATTEMPT] Failed to fetch ${checkDateStr}: ${err.message}`);
+          continue;
+        }
+      }
+
+      if (gameCount === 0 && !fallbackDate) {
+        console.warn(
+          `[NO GAMES] No games found for ${date} or previous 7 days`
+        );
+      }
     }
 
-    const data = await response.json();
     console.log(
       `[REAL DATA] Successfully fetched ${data.data?.length || 0} games from BallDontLie`
     );
@@ -162,7 +219,12 @@ exports.handler = async (event, context) => {
     const enrichedData = {
       ...data,
       _dataSource: 'REAL',
-      _apiProvider: 'BallDontLie'
+      _apiProvider: 'BallDontLie',
+      _requestedDate: date,
+      _fallbackDate: fallbackDate,
+      _message: fallbackDate
+        ? `Showing games from ${fallbackDate} (no games found for ${date})`
+        : undefined
     };
 
     setCache(cacheKey, enrichedData);
