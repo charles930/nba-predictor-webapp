@@ -1,3 +1,4 @@
+import fetch from "node-fetch";
 // Netlify serverless function for team statistics
 
 const cache = new Map();

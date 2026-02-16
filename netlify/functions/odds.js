@@ -1,3 +1,4 @@
+import fetch from "node-fetch";
 // Netlify serverless function for betting odds
 
 const cache = new Map();

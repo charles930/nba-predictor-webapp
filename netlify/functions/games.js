@@ -1,6 +1,8 @@
 // Netlify serverless function for NBA games
 // This replaces the Express backend for production
 
+import fetch from 'node-fetch';
+
 const cache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
