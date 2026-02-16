@@ -6,12 +6,12 @@ export class APIManager {
     constructor(backendUrl = null) {
         this.ballDontLieBase = 'https://api.balldontlie.io/v1';
         this.oddsAPIBase = 'https://api.the-odds-api.com/v4';
-        // Use Netlify functions in production, fallback to localhost for development
-        this.backendUrl = backendUrl || (
-            typeof window !== 'undefined' && window.location.hostname === 'localhost'
-                ? 'http://localhost:3001'
-                : '/.netlify/functions'
-        );
+        // Always use Netlify functions in production
+        // Check for localhost OR 127.0.0.1 for local development
+        const isLocalDev = typeof window !== 'undefined' && 
+            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+            window.location.port !== '';  // Production Netlify has no port
+        this.backendUrl = backendUrl || (isLocalDev ? 'http://localhost:3001' : '/.netlify/functions');
         
         // Cache configuration
         this.cache = new Map();
