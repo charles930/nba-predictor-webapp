@@ -46,7 +46,9 @@ export default function App() {
         message: gamesResult._message,
         debug: gamesResult._debug,
         count: gamesResult.data?.length,
-        firstGame: gamesResult.data?.[0]?.home_team?.name
+        firstGame: gamesResult.data?.[0]?.home_team?.name,
+        error: gamesResult._error,
+        attemptedUrl: gamesResult._attemptedUrl
       })
       
       // Calculate next start date for "Load More" button
@@ -63,7 +65,8 @@ export default function App() {
         setFallbackMessage(gamesResult._message)
       }
     } catch (err) {
-      setError('Failed to load games. Please try again.')
+      setError(`Failed to load games: ${err.message}`)
+      setDebugInfo({ error: err.message, stack: err.stack?.slice(0, 200) })
       console.error('Error loading games:', err)
     } finally {
       setLoading(false)
@@ -163,6 +166,8 @@ export default function App() {
           <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-4 mb-6 text-xs font-mono">
             <p className="text-yellow-200">🔍 DEBUG: Source={debugInfo.source} | Count={debugInfo.count} | FirstTeam={debugInfo.firstGame}</p>
             {debugInfo.debug && <p className="text-yellow-200">API Key Found: {debugInfo.debug.apiKeyFound ? 'YES' : 'NO'}</p>}
+            {debugInfo.error && <p className="text-red-300">❌ Error: {debugInfo.error}</p>}
+            {debugInfo.attemptedUrl && <p className="text-yellow-200">URL: {debugInfo.attemptedUrl}</p>}
           </div>
         )}
 
