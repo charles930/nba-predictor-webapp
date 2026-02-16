@@ -189,6 +189,43 @@ export class APIManager {
         }
     }
 
+    // Get games with pagination support (scrolling list)
+    async getGamesList(startDate, perPage = 10, cursor = 0) {
+        const cacheKey = this.getCacheKey('gamesList', { startDate, perPage });
+        const cached = this.getFromCache(cacheKey);
+        if (cached) {
+            console.log('[CACHE HIT] Games list from cache');
+            return cached;
+        }
+
+        try {
+            // Use Netlify function in production, Express server in development
+            const path = this.backendUrl.includes('/.netlify/functions') 
+                ? `/games?start_date=${startDate}&per_page=${perPage}&cursor=${cursor}` 
+                : `/api/games?start_date=${startDate}&per_page=${perPage}&cursor=${cursor}`;
+            const url = `${this.backendUrl}${path}`;
+            const data = await this.fetchWithRetry(url);
+            
+            // Log data source
+            if (data._dataSource === 'REAL') {
+                console.log('✅ [REAL DATA] Games list are from BallDontLie API');
+            } else if (data._dataSource === 'MOCK') {
+                console.warn('⚠️ [MOCK DATA] Using simulated games - configure BALLDONTLIE_API_KEY for real data');
+            }
+            
+            this.setCache(cacheKey, data);
+            return data;
+        } catch (error) {
+            console.error('Error fetching games list from backend, using mock data:', error);
+            const mockData = this.getMockGamesList(startDate, perPage);
+            return {
+                ...mockData,
+                _dataSource: 'MOCK',
+                _message: 'Backend unavailable - using mock data'
+            };
+        }
+    }
+
     async getTeamStats(teamId, season = 2025) {
         const cacheKey = this.getCacheKey('teamStats', { teamId, season });
         const cached = this.getFromCache(cacheKey);
@@ -323,6 +360,65 @@ export class APIManager {
         ];
         
         return { data: games };
+    }
+
+    getMockGamesList(startDate, perPage = 10) {
+        // Generate mock games across multiple days
+        const mockGames = [
+            { abbreviations: ['LAL', 'GSW'], names: ['Lakers', 'Warriors'], times: ['19:30'] },
+            { abbreviations: ['BOS', 'MIA'], names: ['Celtics', 'Heat'], times: ['19:00'] },
+            { abbreviations: ['PHX', 'DEN'], names: ['Suns', 'Nuggets'], times: ['22:00'] },
+            { abbreviations: ['LAC', 'NYK'], names: ['Clippers', 'Knicks'], times: ['19:30'] },
+            { abbreviations: ['MIL', 'BOS'], names: ['Bucks', 'Celtics'], times: ['20:00'] },
+            { abbreviations: ['DAL', 'HOU'], names: ['Mavericks', 'Rockets'], times: ['20:30'] },
+            { abbreviations: ['SAS', 'OKC'], names: ['Spurs', 'Thunder'], times: ['21:00'] },
+            { abbreviations: ['TOR', 'WAS'], names: ['Raptors', 'Wizards'], times: ['19:30'] },
+            { abbreviations: ['ATL', 'CHA'], names: ['Hawks', 'Hornets'], times: ['19:30'] },
+            { abbreviations: ['MIN', 'MEM'], names: ['Timberwolves', 'Grizzlies'], times: ['20:00'] }
+        ];
+
+        const games = [];
+        const startDateObj = this.parseDate(startDate);
+        
+        for (let i = 0; i < perPage; i++) {
+            const dayOffset = Math.floor(i / 3);
+            const gameDate = new Date(startDateObj);
+            gameDate.setDate(gameDate.getDate() + dayOffset);
+            const gameDateStr = this.formatDate(gameDate);
+            
+            const mockGame = mockGames[i % mockGames.length];
+            
+            games.push({
+                id: i,
+                date: gameDateStr,
+                home_team: {
+                    id: i * 2,
+                    abbreviation: mockGame.abbreviations[0],
+                    city: mockGame.names[0].split(' ')[0],
+                    name: mockGame.names[0],
+                    full_name: mockGame.names[0]
+                },
+                visitor_team: {
+                    id: i * 2 + 1,
+                    abbreviation: mockGame.abbreviations[1],
+                    city: mockGame.names[1].split(' ')[0],
+                    name: mockGame.names[1],
+                    full_name: mockGame.names[1]
+                },
+                home_team_score: 0,
+                visitor_team_score: 0,
+                status: 'scheduled',
+                time: mockGame.times[0] + ' ET',
+                period: 0
+            });
+        }
+        
+        return { data: games };
+    }
+
+    parseDate(dateStr) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
     }
 
     getMockTeamStats(teamId) {

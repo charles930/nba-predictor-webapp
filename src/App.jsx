@@ -3,40 +3,52 @@ import { APIManager } from './lib/api'
 import { NBAPredictor } from './lib/predictor'
 import './App.css'
 import Header from './components/Header'
-import DateNavigation from './components/DateNavigation'
 import GamesList from './components/GamesList'
 import GameDetail from './components/GameDetail'
 import SettingsPanel from './components/SettingsPanel'
 
 export default function App() {
-  const [currentDate, setCurrentDate] = useState(new Date())
   const [currentView, setCurrentView] = useState('list') // 'list' or 'detail'
   const [gamesData, setGamesData] = useState([])
   const [currentGame, setCurrentGame] = useState(null)
   const [currentPrediction, setCurrentPrediction] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [lastUpdate, setLastUpdate] = useState('Never')
   const [fallbackMessage, setFallbackMessage] = useState(null)
+  const [nextStartDate, setNextStartDate] = useState(null)
 
   // Initialize API and predictor
   const apiManager = new APIManager()
   const predictor = new NBAPredictor()
 
   useEffect(() => {
-    loadGames()
-  }, [currentDate])
+    loadInitialGames()
+  }, [])
 
-  const loadGames = async () => {
+  const loadInitialGames = async () => {
     setLoading(true)
     setError(null)
     setFallbackMessage(null)
     try {
-      const dateStr = apiManager.formatDate(currentDate)
-      const gamesResult = await apiManager.getGames(dateStr)
+      // Start with today's date
+      const today = new Date()
+      const startDate = apiManager.formatDate(today)
+      
+      const gamesResult = await apiManager.getGamesList(startDate, 10)
       setGamesData(gamesResult.data || [])
       setLastUpdate(new Date().toLocaleTimeString())
+      
+      // Calculate next start date for "Load More" button
+      if (gamesResult.data && gamesResult.data.length > 0) {
+        // Get the date of the last game and add one day
+        const lastGame = gamesResult.data[gamesResult.data.length - 1]
+        const lastGameDate = new Date(lastGame.date)
+        lastGameDate.setDate(lastGameDate.getDate() + 1)
+        setNextStartDate(apiManager.formatDate(lastGameDate))
+      }
       
       // Show fallback message if games are from a different date
       if (gamesResult._message) {
@@ -47,6 +59,36 @@ export default function App() {
       console.error('Error loading games:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMoreGames = async () => {
+    if (!nextStartDate) return
+    
+    setLoadingMore(true)
+    setError(null)
+    try {
+      const gamesResult = await apiManager.getGamesList(nextStartDate, 10)
+      const newGames = gamesResult.data || []
+      
+      // Append new games to existing list
+      setGamesData(prev => [...prev, ...newGames])
+      setLastUpdate(new Date().toLocaleTimeString())
+      
+      // Calculate next start date
+      if (newGames.length > 0) {
+        const lastGame = newGames[newGames.length - 1]
+        const lastGameDate = new Date(lastGame.date)
+        lastGameDate.setDate(lastGameDate.getDate() + 1)
+        setNextStartDate(apiManager.formatDate(lastGameDate))
+      } else {
+        setNextStartDate(null) // No more games
+      }
+    } catch (err) {
+      setError('Failed to load more games. Please try again.')
+      console.error('Error loading more games:', err)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -75,14 +117,10 @@ export default function App() {
     setCurrentPrediction(null)
   }
 
-  const handleDateChange = (days) => {
-    const newDate = new Date(currentDate)
-    newDate.setDate(newDate.getDate() + days)
-    setCurrentDate(newDate)
-  }
-
   const handleRefresh = () => {
-    loadGames()
+    loadInitialGames()
+    setGamesData([])
+    setNextStartDate(null)
   }
 
   return (
@@ -90,12 +128,6 @@ export default function App() {
       <Header 
         onSettingsClick={() => setShowSettings(true)}
         lastUpdate={lastUpdate}
-      />
-      
-      <DateNavigation 
-        currentDate={currentDate}
-        onPrevDay={() => handleDateChange(-1)}
-        onNextDay={() => handleDateChange(1)}
         onRefresh={handleRefresh}
         loading={loading}
       />
@@ -105,7 +137,7 @@ export default function App() {
           <div className="bg-red-500/20 border border-red-500 rounded-lg p-4 mb-6">
             <p className="text-red-200">{error}</p>
             <button 
-              onClick={loadGames}
+              onClick={loadInitialGames}
               className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition"
             >
               Retry
@@ -123,7 +155,10 @@ export default function App() {
           <GamesList 
             games={gamesData}
             loading={loading}
+            loadingMore={loadingMore}
             onSelectGame={handleSelectGame}
+            onLoadMore={loadMoreGames}
+            canLoadMore={nextStartDate !== null}
           />
         )}
 
@@ -143,7 +178,7 @@ export default function App() {
           onClose={() => setShowSettings(false)}
           onSave={() => {
             setShowSettings(false)
-            loadGames()
+            loadInitialGames()
           }}
         />
       )}
