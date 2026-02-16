@@ -19,7 +19,11 @@ function groupGamesByDate(games) {
 }
 
 function formatDateHeader(dateStr) {
-  const date = new Date(dateStr);
+  // Parse as local date to avoid UTC timezone conversion issues
+  // BallDontLie returns dates as YYYY-MM-DD which should be interpreted as local dates
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  
   return date.toLocaleDateString('en-US', { 
     weekday: 'long', 
     month: 'long', 

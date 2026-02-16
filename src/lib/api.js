@@ -221,10 +221,7 @@ export class APIManager {
             return {
                 ...mockData,
                 _dataSource: 'MOCK',
-                _message: 'Backend unavailable - using mock data',
-                _error: error.message,
-                _errorStack: error.stack?.slice(0, 300),
-                _attemptedUrl: `${this.backendUrl}${this.backendUrl.includes('/.netlify/functions') ? '/games' : '/api/games'}?start_date=${startDate}`
+                _message: 'Backend unavailable - using mock data'
             };
         }
     }

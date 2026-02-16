@@ -19,7 +19,6 @@ export default function App() {
   const [lastUpdate, setLastUpdate] = useState('Never')
   const [fallbackMessage, setFallbackMessage] = useState(null)
   const [nextStartDate, setNextStartDate] = useState(null)
-  const [debugInfo, setDebugInfo] = useState(null)
 
   // Initialize API and predictor
   const apiManager = new APIManager()
@@ -41,15 +40,6 @@ export default function App() {
       const gamesResult = await apiManager.getGamesList(startDate, 10)
       setGamesData(gamesResult.data || [])
       setLastUpdate(new Date().toLocaleTimeString())
-      setDebugInfo({
-        source: gamesResult._dataSource,
-        message: gamesResult._message,
-        debug: gamesResult._debug,
-        count: gamesResult.data?.length,
-        firstGame: gamesResult.data?.[0]?.home_team?.name,
-        error: gamesResult._error,
-        attemptedUrl: gamesResult._attemptedUrl
-      })
       
       // Calculate next start date for "Load More" button
       if (gamesResult.data && gamesResult.data.length > 0) {
@@ -66,7 +56,6 @@ export default function App() {
       }
     } catch (err) {
       setError(`Failed to load games: ${err.message}`)
-      setDebugInfo({ error: err.message, stack: err.stack?.slice(0, 200) })
       console.error('Error loading games:', err)
     } finally {
       setLoading(false)
@@ -159,15 +148,6 @@ export default function App() {
         {fallbackMessage && (
           <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4 mb-6">
             <p className="text-blue-200">ℹ️ {fallbackMessage}</p>
-          </div>
-        )}
-
-        {debugInfo && (
-          <div className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-4 mb-6 text-xs font-mono">
-            <p className="text-yellow-200">🔍 DEBUG: Source={debugInfo.source} | Count={debugInfo.count} | FirstTeam={debugInfo.firstGame}</p>
-            {debugInfo.debug && <p className="text-yellow-200">API Key Found: {debugInfo.debug.apiKeyFound ? 'YES' : 'NO'}</p>}
-            {debugInfo.error && <p className="text-red-300">❌ Error: {debugInfo.error}</p>}
-            {debugInfo.attemptedUrl && <p className="text-yellow-200">URL: {debugInfo.attemptedUrl}</p>}
           </div>
         )}
 
